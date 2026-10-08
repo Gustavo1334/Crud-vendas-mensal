@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador de Vendas Mensais</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <h1>Gerenciador de Vendas Mensais</h1>
+
+  <form id="form-venda">
+    <h2 id="form-titulo">Adicionar Venda</h2>
+    <input type="hidden" id="venda-id">
+    <div>
+      <label for="mes">Mês (número de 1 a 12):</label>
+      <input type="number" id="mes" min="1" max="12" required>
+    </div>
+    <div>
+      <label for="valorVendido">Valor Vendido (R$):</label>
+      <input type="number" id="valorVendido" step="0.01" required>
+    </div>
+    <button type="submit" id="btn-salvar">Salvar</button>
+    <button type="button" id="btn-cancelar" style="display:none; background: #6c757d;">Cancelar</button>
+  </form>
+
+  <h2>Lista de Vendas</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Mês</th>
+        <th>Valor Vendido</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody id="tabela-vendas">
+    </tbody>
+  </table>
+
+  <script>
+    const API_URL = "/vendas";
+
+    const form = document.getElementById("form-venda");
+    const inputId = document.getElementById("venda-id");
+    const inputMes = document.getElementById("mes");
+    const inputValor = document.getElementById("valorVendido");
+    const tabela = document.getElementById("tabela-vendas");
+    const formTitulo = document.getElementById("form-titulo");
+    const btnCancelar = document.getElementById("btn-cancelar");
+
+    // READ: Buscar e listar registros
+    async function carregarVendas() {
+      try {
+        const res = await fetch(API_URL);
+        const vendas = await res.json();
+
+        tabela.innerHTML = "";
+        vendas.forEach(venda => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${venda.mes}</td>
+            <td>R$ ${Number(venda.valorVendido).toFixed(2)}</td>
+            <td>
+              <button onclick="editarVenda('${venda._id}', ${venda.mes}, ${venda.valorVendido})">Editar</button>
+              <button class="btn-del" onclick="deletarVenda('${venda._id}')">Excluir</button>
+            </td>
+          `;
+          tabela.appendChild(tr);
+        });
+      } catch (error) {
+        console.error("Erro ao carregar vendas:", error);
+      }
+    }
+
+    // CREATE / UPDATE: Enviar dados do formulário
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const id = inputId.value;
+      const dados = {
+        mes: Number(inputMes.value),
+        valorVendido: Number(inputValor.value)
+      };
+
+      try {
+        if (id) {
+          // Atualiza registro
+          await fetch(`${API_URL}/${id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados)
+          });
+        } else {
+          // Cria novo registro
+          await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(dados)
+          });
+        }
+
+        limparFormulario();
+        carregarVendas();
+      } catch (error) {
+        console.error("Erro ao salvar:", error);
+      }
+    });
+
+    // Preparar formulário para edição
+    window.editarVenda = (id, mes, valor) => {
+      inputId.value = id;
+      inputMes.value = mes;
+      inputValor.value = valor;
+      formTitulo.innerText = "Editar Venda";
+      btnCancelar.style.display = "inline-block";
+    };
+
+    // Excluir registro
+    window.deletarVenda = async (id) => {
+      if (confirm("Tem certeza que deseja excluir?")) {
+        try {
+          await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+          carregarVendas();
+        } catch (error) {
+          console.error("Erro ao deletar:", error);
+        }
+      }
+    };
+
+    // Cancelar edição
+    btnCancelar.addEventListener("click", limparFormulario);
+
+    function limparFormulario() {
+      inputId.value = "";
+      inputMes.value = "";
+      inputValor.value = "";
+      formTitulo.innerText = "Adicionar Venda";
+      btnCancelar.style.display = "none";
+    }
+
+    // Carrega registros na inicialização
+    carregarVendas();
+  </script>
+</body>
+</html>
